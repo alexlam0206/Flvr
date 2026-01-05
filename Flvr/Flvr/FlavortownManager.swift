@@ -1,12 +1,6 @@
-//
-//  FlavortownManager.swift
-//  Flvr
-//
-
 import Foundation
 import SwiftUI
 
-/// A helper type that can decode an Int even if the API returns it as a String
 struct FlexibleInt: Codable, Hashable {
     let value: Int
     
@@ -170,19 +164,118 @@ struct DevlogResponse: Codable {
     let devlogs: [Devlog]
 }
 
+struct GitHubRelease: Codable {
+    let tagName: String
+    let htmlUrl: String
+    let body: String?
+    
+    enum CodingKeys: String, CodingKey {
+        case tagName = "tag_name"
+        case htmlUrl = "html_url"
+        case body
+    }
+}
+
 @Observable
 class FlavortownManager {
     var projects: [Project] = []
-    var devlogs: [Int: [Devlog]] = [:] // projectIdValue: [Devlog]
+    var devlogs: [Int: [Devlog]] = [:]
     var storeItems: [StoreItem] = []
     var users: [User] = []
+    
+    var availableUpdate: GitHubRelease?
+    var showUpdateAlert = false
+    
+    var appVersion: String {
+        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0"
+    }
+    
+    init() {
+        let savedIds = UserDefaults.standard.array(forKey: "flvr_target_item_ids") as? [Int] ?? []
+        self.targetItemIds = Set(savedIds)
+        
+        Task {
+            await checkForUpdates()
+        }
+    }
+    
+    func checkForUpdates() async {
+        let lastCheck = UserDefaults.standard.double(forKey: "flvr_last_update_check")
+        let now = Date().timeIntervalSince1970
+        
+        if now - lastCheck < 43200 && availableUpdate == nil {
+            return
+        }
+        
+        guard let url = URL(string: "https://api.github.com/repos/alexlam0206/Flvr/releases/latest") else { return }
+        
+        do {
+            var request = URLRequest(url: url)
+            request.addValue("application/vnd.github.v3+json", forHTTPHeaderField: "Accept")
+            
+            let (data, _) = try await URLSession.shared.data(for: request)
+            let release = try JSONDecoder().decode(GitHubRelease.self, from: data)
+            
+            if release.tagName != appVersion {
+                await MainActor.run {
+                    self.availableUpdate = release
+                    self.showUpdateAlert = true
+                }
+            }
+            
+            UserDefaults.standard.set(now, forKey: "flvr_last_update_check")
+        } catch {
+            print("DEBUG: [APP] Update check failed: \(error)")
+        }
+    }
+    
+    func remindMeLater() {
+        showUpdateAlert = false
+        UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: "flvr_last_update_check")
+    }
     
     var showDevlogInfo = false
     var isFetching = false
     var lastUpdated: Date?
     var tabErrors: [Tab: String] = [:]
     
-    // User Configuration
+    var targetItemIds: Set<Int> = [] {
+        didSet {
+            UserDefaults.standard.set(Array(targetItemIds), forKey: "flvr_target_item_ids")
+        }
+    }
+    
+    var cookiesPerHour: Int = UserDefaults.standard.integer(forKey: "flvr_cookies_per_hour") == 0 ? 10 : UserDefaults.standard.integer(forKey: "flvr_cookies_per_hour") {
+        didSet {
+            UserDefaults.standard.set(cookiesPerHour, forKey: "flvr_cookies_per_hour")
+        }
+    }
+    
+    func toggleTargetItem(_ id: Int) {
+        if targetItemIds.contains(id) {
+            targetItemIds.remove(id)
+        } else {
+            targetItemIds.insert(id)
+        }
+    }
+    
+    var totalTargetCost: Int {
+        return storeItems
+            .filter { targetItemIds.contains($0.id.value) }
+            .compactMap { $0.ticketCost?.baseCost?.value }
+            .reduce(0, +)
+    }
+    
+    var remainingCookiesNeeded: Int {
+        let currentCookies = currentUser?.cookies ?? 0
+        return max(0, totalTargetCost - currentCookies)
+    }
+    
+    var estimatedHoursToTarget: Double? {
+        guard cookiesPerHour > 0, remainingCookiesNeeded > 0 else { return nil }
+        return Double(remainingCookiesNeeded) / Double(cookiesPerHour)
+    }
+    
     var apiKey: String = UserDefaults.standard.string(forKey: "flvr_api_key") ?? "" {
         didSet { 
             UserDefaults.standard.set(apiKey, forKey: "flvr_api_key")
@@ -229,12 +322,16 @@ class FlavortownManager {
         return projects.filter { ids.contains($0.id.value) }
     }
     
-    var sortedProjects: [Project] {
-        return projects.sorted { ($0.title ?? "") < ($1.title ?? "") }
+    var sortedStoreItems: [StoreItem] {
+        return storeItems
+            .filter { ($0.ticketCost?.baseCost?.value ?? 0) > 0 }
+            .sorted { 
+                ($0.ticketCost?.baseCost?.value ?? 0) < ($1.ticketCost?.baseCost?.value ?? 0)
+            }
     }
     
-    var sortedUsers: [User] {
-        return users.sorted { ($0.displayName ?? "") < ($1.displayName ?? "") }
+    var sortedProjects: [Project] {
+        return projects.sorted { ($0.title ?? "") < ($1.title ?? "") }
     }
     
     var totalHoursLogged: Double {
@@ -256,7 +353,7 @@ class FlavortownManager {
     }
     
     enum Tab: String, CaseIterable {
-        case projects, store, users, settings
+        case projects, store, settings
     }
     var selectedTab: Tab = .projects
     
@@ -268,18 +365,13 @@ class FlavortownManager {
         request.addValue("true", forHTTPHeaderField: "X-Flavortown-Ext-2532")
         request.addValue("application/json", forHTTPHeaderField: "Accept")
         
-        // Add API Key if present
         let key = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
         if !key.isEmpty {
-            print("DEBUG: [APP] Using API Key starting with: \(key.prefix(4))...")
-            // Standard Bearer token authentication
             if !key.lowercased().hasPrefix("bearer ") {
                 request.addValue("Bearer \(key)", forHTTPHeaderField: "Authorization")
             } else {
                 request.addValue(key, forHTTPHeaderField: "Authorization")
             }
-        } else {
-            print("DEBUG: [APP] WARNING: No API Key found in settings.")
         }
         
         return request
@@ -297,12 +389,8 @@ class FlavortownManager {
             group.addTask { await self.fetchStoreItems() }
             
             if let id = Int(trimmedUserId) {
-                // Targeted fetch for specific user
                 group.addTask { 
                     await self.fetchSpecificUser(id: id)
-                    // Clear previous projects if switching users
-                    await MainActor.run { self.projects = [] }
-                    // After user is fetched, fetch their projects
                     if let user = self.currentUser, let projectIds = user.projectIds {
                         await withTaskGroup(of: Void.self) { projectGroup in
                             for pid in projectIds {
@@ -312,13 +400,10 @@ class FlavortownManager {
                     }
                 }
             } else {
-                // Global fetch fallback
                 group.addTask { await self.fetchProjects() }
-                group.addTask { await self.fetchUsers() }
             }
         }
         
-        // Fetch devlogs for the selected project if we have one
         if let selectedId = selectedProjectId {
             await fetchDevlogs(for: selectedId)
         }
@@ -365,16 +450,13 @@ class FlavortownManager {
 
     func fetchProjects() async {
         guard let url = URL(string: "\(baseURL)/projects") else { return }
-        print("DEBUG: [APP] Starting fetch projects from: \(url.absoluteString)")
         do {
             let request = createRequest(url: url)
             let (data, response) = try await URLSession.shared.data(for: request)
             
             if let httpResponse = response as? HTTPURLResponse {
-                print("DEBUG: [APP] Projects HTTP Status: \(httpResponse.statusCode)")
                 if httpResponse.statusCode != 200 {
                     let body = String(data: data, encoding: .utf8) ?? "No error body"
-                    print("DEBUG: [APP] API Error Body: \(body)")
                     await MainActor.run {
                         self.tabErrors[.projects] = "API Error (\(httpResponse.statusCode)): \(body)"
                     }
@@ -397,7 +479,6 @@ class FlavortownManager {
                 }
             }
         } catch {
-            print("DEBUG: [APP] Network error fetching projects: \(error)")
             await MainActor.run {
                 self.tabErrors[.projects] = "Network Error: \(error.localizedDescription)"
             }
@@ -405,7 +486,6 @@ class FlavortownManager {
     }
 
     private func fetchDevlogsForProjects(_ projects: [Project]) async {
-        // Fetch devlogs in parallel for the first 5 projects to avoid rate limiting
         let limitedProjects = Array(projects.prefix(5))
         await withTaskGroup(of: Void.self) { group in
             for project in limitedProjects {
@@ -456,7 +536,6 @@ class FlavortownManager {
                         self.isFetching = false
                     }
                 } else {
-                    // Force decode to get the real error if both failed
                     _ = try decoder.decode([StoreItem].self, from: data)
                 }
             } catch {
@@ -474,102 +553,32 @@ class FlavortownManager {
         }
     }
 
-    func fetchUsers() async {
-        guard let url = URL(string: "\(baseURL)/users") else { return }
-        print("DEBUG: [APP] Starting fetch users from: \(url.absoluteString)")
-        do {
-            let request = createRequest(url: url)
-            let (data, response) = try await URLSession.shared.data(for: request)
-            
-            if let httpResponse = response as? HTTPURLResponse {
-                print("DEBUG: [APP] Users HTTP Status: \(httpResponse.statusCode)")
-                if httpResponse.statusCode != 200 {
-                    let body = String(data: data, encoding: .utf8) ?? "No error body"
-                    print("DEBUG: [APP] Users API Error Body: \(body)")
-                    await MainActor.run {
-                        self.tabErrors[.users] = "API Error (\(httpResponse.statusCode)): \(body)"
-                    }
-                    return
-                }
-            }
-
-            let decoder = JSONDecoder()
-            if let userResponse = try? decoder.decode(UserResponse.self, from: data) {
-                await MainActor.run {
-                    self.users = userResponse.users
-                }
-            } else if let users = try? decoder.decode([User].self, from: data) {
-                await MainActor.run {
-                    self.users = users
-                }
-            } else {
-                await MainActor.run {
-                    self.tabErrors[.users] = "Users Decoding failed."
-                }
-            }
-        } catch {
-            print("DEBUG: [APP] Network error fetching users: \(error)")
-            await MainActor.run {
-                self.tabErrors[.users] = "Users Network Error: \(error.localizedDescription)"
-            }
-        }
-    }
-
     func fetchDevlogs(for projectId: Int) async {
         guard let url = URL(string: "\(baseURL)/projects/\(projectId)/devlogs") else { return }
-        print("DEBUG: [APP] Fetching devlogs for project \(projectId)")
         do {
             let request = createRequest(url: url)
-            let (data, response) = try await URLSession.shared.data(for: request)
-            
-            if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode != 200 {
-                print("DEBUG: [APP] Devlogs error (project \(projectId)): Status \(httpResponse.statusCode)")
-                return
-            }
-
+            let (data, _) = try await URLSession.shared.data(for: request)
             let decoder = JSONDecoder()
-            // Try decoding as an object with "devlogs" key first
-            if let devlogResponse = try? decoder.decode(DevlogResponse.self, from: data) {
+            if let response = try? decoder.decode(DevlogResponse.self, from: data) {
                 await MainActor.run {
-                    self.devlogs[projectId] = devlogResponse.devlogs
-                    print("DEBUG: [APP] Fetched \(devlogResponse.devlogs.count) devlogs for project \(projectId)")
+                    self.devlogs[projectId] = response.devlogs
                 }
-            } 
-            // Then try decoding as a direct array
-            else if let logs = try? decoder.decode([Devlog].self, from: data) {
+            } else if let logs = try? decoder.decode([Devlog].self, from: data) {
                 await MainActor.run {
                     self.devlogs[projectId] = logs
-                    print("DEBUG: [APP] Fetched \(logs.count) devlogs for project \(projectId)")
                 }
             }
-        } catch {
-            print("DEBUG: [APP] Error fetching devlogs for project \(projectId): \(error)")
-        }
+        } catch {}
     }
-    
+
     func startPolling() {
-        print("Starting polling...")
-        
-        // Listen for manual refresh notifications from context menu
-        NotificationCenter.default.addObserver(forName: NSNotification.Name("RefreshData"), object: nil, queue: .main) { _ in
+        timer?.invalidate()
+        timer = Timer.scheduledTimer(withTimeInterval: 300, repeats: true) { _ in
             Task { await self.fetchData() }
         }
-        
-        timer?.invalidate()
-        timer = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { _ in
-            print("Timer fired, fetching data...")
-            Task {
-                await self.fetchData()
-            }
-        }
-        // Initial fetch
-        Task {
-            print("Initial fetch starting...")
-            await self.fetchData()
-            print("Initial fetch completed.")
-        }
+        Task { await fetchData() }
     }
-    
+
     func stopPolling() {
         timer?.invalidate()
         timer = nil

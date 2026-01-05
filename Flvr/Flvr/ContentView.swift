@@ -1,8 +1,3 @@
-//
-//  ContentView.swift
-//  Flvr
-//
-
 import SwiftUI
 import SwiftData
 
@@ -33,7 +28,6 @@ struct ContentView: View {
             Section("Flavortown") {
                 Label("Projects", systemImage: "hammer.fill").tag(FlavortownManager.Tab.projects)
                 Label("Store", systemImage: "cart.fill").tag(FlavortownManager.Tab.store)
-                Label("Users", systemImage: "person.2.fill").tag(FlavortownManager.Tab.users)
             }
             
             Section("App") {
@@ -75,7 +69,6 @@ struct ContentView: View {
         switch manager.selectedTab {
         case .projects: return "Projects"
         case .store: return "Store"
-        case .users: return "Users"
         case .settings: return "Settings"
         }
     }
@@ -87,7 +80,6 @@ struct ContentView: View {
             Picker("", selection: $manager.selectedTab) {
                 Label("Projects", systemImage: "hammer.fill").tag(FlavortownManager.Tab.projects)
                 Label("Store", systemImage: "cart.fill").tag(FlavortownManager.Tab.store)
-                Label("Users", systemImage: "person.2.fill").tag(FlavortownManager.Tab.users)
                 Label("Settings", systemImage: "gearshape.fill").tag(FlavortownManager.Tab.settings)
             }
             .pickerStyle(.segmented)
@@ -105,17 +97,33 @@ struct ContentView: View {
         .task {
             manager.startPolling()
         }
+        .alert("New Update Available", isPresented: $manager.showUpdateAlert, presenting: manager.availableUpdate) { release in
+            Button("Update Now") {
+                if let url = URL(string: release.htmlUrl) {
+                    NSWorkspace.shared.open(url)
+                }
+                manager.showUpdateAlert = false
+            }
+            Button("Remind Me Later") {
+                manager.remindMeLater()
+            }
+            Button("Cancel", role: .cancel) {
+                manager.showUpdateAlert = false
+            }
+        } message: { release in
+            Text("A new version (\(release.tagName)) is available. Would you like to update?\n\n\(release.body ?? "")")
+        }
     }
 
     @ViewBuilder
     private var content: some View {
         if manager.selectedTab == .settings {
             SettingsView(manager: manager)
-        } else if manager.isFetching && manager.projects.isEmpty && manager.storeItems.isEmpty && manager.users.isEmpty {
+        } else if manager.isFetching && manager.projects.isEmpty && manager.storeItems.isEmpty {
             loadingView
         } else if let error = manager.tabErrors[manager.selectedTab] {
             errorView(error)
-        } else if !manager.isFetching && manager.projects.isEmpty && manager.storeItems.isEmpty && manager.users.isEmpty {
+        } else if !manager.isFetching && manager.projects.isEmpty && manager.storeItems.isEmpty {
             emptyView
         } else {
             adaptiveList
@@ -197,12 +205,8 @@ struct ContentView: View {
                     ProjectRow(project: project, manager: manager)
                 }
             case .store:
-                ForEach(manager.storeItems) { item in
-                    StoreItemRow(item: item)
-                }
-            case .users:
-                ForEach(manager.sortedUsers) { user in
-                    UserRow(user: user, isMe: String(user.id.value) == manager.userId)
+                ForEach(manager.sortedStoreItems) { item in
+                    StoreItemRow(item: item, manager: manager)
                 }
             case .settings:
                 EmptyView()
@@ -221,12 +225,8 @@ struct ContentView: View {
                         ProjectCard(project: project, manager: manager)
                     }
                 case .store:
-                    ForEach(manager.storeItems) { item in
-                        StoreCard(item: item)
-                    }
-                case .users:
-                    ForEach(manager.sortedUsers) { user in
-                        UserCard(user: user, isMe: String(user.id.value) == manager.userId)
+                    ForEach(manager.sortedStoreItems) { item in
+                        StoreCard(item: item, manager: manager)
                     }
                 case .settings:
                     EmptyView()
@@ -266,7 +266,7 @@ struct ContentView: View {
                     HStack(spacing: 6) {
                         Text(user.displayName ?? "Anonymous")
                         if let cookies = user.cookies {
-                            Text("🍪 \(cookies)")
+                            Text("\(cookies) 🍪")
                         }
                     }
                     .font(.system(size: 10, weight: .medium))
@@ -387,6 +387,11 @@ struct ProjectCard: View {
 
 struct StoreCard: View {
     let item: StoreItem
+    let manager: FlavortownManager
+    
+    var isTargeted: Bool {
+        manager.targetItemIds.contains(item.id.value)
+    }
     
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -400,70 +405,36 @@ struct StoreCard: View {
             Text(item.name ?? "Unknown Item")
                 .font(.headline)
             
-            if let cost = item.ticketCost?.baseCost {
-                Text("\(cost.value) TICKETS")
-                    .font(.caption.bold())
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(Color.orange.opacity(0.2))
-                    .foregroundStyle(.orange)
-                    .cornerRadius(4)
+            HStack {
+                if let cost = item.ticketCost?.baseCost {
+                    Text("\(cost.value) COOKIES")
+                        .font(.caption.bold())
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(Color.orange.opacity(0.2))
+                        .foregroundStyle(.orange)
+                        .cornerRadius(4)
+                }
+                
+                Spacer()
+                
+                Button {
+                    manager.toggleTargetItem(item.id.value)
+                } label: {
+                    Image(systemName: isTargeted ? "target" : "circle")
+                        .foregroundStyle(isTargeted ? .orange : .secondary)
+                }
+                .buttonStyle(.plain)
             }
             
             Spacer()
         }
         .padding()
         .frame(height: 240)
-        .background(Color.primary.opacity(0.05))
-        .cornerRadius(12)
-    }
-}
-
-struct UserCard: View {
-    let user: User
-    let isMe: Bool
-    
-    var body: some View {
-        HStack(spacing: 16) {
-            if let avatar = user.avatar, let url = URL(string: avatar) {
-                CachedAsyncImage(url: url)
-                    .frame(width: 60, height: 60)
-                    .clipShape(Circle())
-            } else {
-                Circle()
-                    .fill(Color.orange.opacity(0.1))
-                    .frame(width: 60, height: 60)
-                    .overlay(Text(user.displayName?.prefix(1) ?? "?").font(.title2))
-            }
-            
-            VStack(alignment: .leading, spacing: 4) {
-                HStack {
-                    Text(user.displayName ?? "Anonymous")
-                        .font(.headline)
-                    if isMe {
-                        Text("ME")
-                            .font(.system(size: 8, weight: .bold))
-                            .padding(.horizontal, 4)
-                            .padding(.vertical, 2)
-                            .background(Color.orange.opacity(0.2))
-                            .foregroundStyle(.orange)
-                            .cornerRadius(4)
-                    }
-                }
-                
-                if let cookies = user.cookies {
-                    Text("\(cookies) 🍪")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
-            }
-            Spacer()
-        }
-        .padding()
-        .background(isMe ? Color.orange.opacity(0.05) : Color.primary.opacity(0.05))
+        .background(isTargeted ? Color.orange.opacity(0.05) : Color.primary.opacity(0.05))
         .overlay(
             RoundedRectangle(cornerRadius: 12)
-                .stroke(isMe ? Color.orange.opacity(0.3) : Color.clear, lineWidth: 1)
+                .stroke(isTargeted ? Color.orange.opacity(0.3) : Color.clear, lineWidth: 2)
         )
         .cornerRadius(12)
     }
@@ -472,6 +443,7 @@ struct UserCard: View {
 struct ProjectRow: View {
     let project: Project
     let manager: FlavortownManager
+    @State private var showDetail = false
     
     var isMine: Bool {
         guard let user = manager.currentUser, let projectIds = user.projectIds else { return false }
@@ -479,132 +451,209 @@ struct ProjectRow: View {
     }
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Text(project.title ?? "Untitled")
-                    .font(.headline)
-                    .foregroundStyle(isMine ? .orange : .primary)
-                
-                if isMine {
-                    Image(systemName: "star.fill")
-                        .font(.caption2)
-                        .foregroundStyle(.orange)
-                }
-                
-                Spacer()
-                if let url = project.repoUrl, let _ = URL(string: url) {
-                    Link(destination: URL(string: url)!) {
-                        Image(systemName: "arrow.up.right.circle.fill")
+        Button {
+            showDetail = true
+        } label: {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text(project.title ?? "Untitled")
+                        .font(.headline)
+                        .foregroundStyle(isMine ? .orange : .primary)
+                    
+                    if isMine {
+                        Image(systemName: "star.fill")
+                            .font(.caption2)
+                            .foregroundStyle(.orange)
+                    }
+                    
+                    Spacer()
+                    if let url = project.repoUrl, let _ = URL(string: url) {
+                        Link(destination: URL(string: url)!) {
+                            Image(systemName: "arrow.up.right.circle.fill")
+                        }
+                        .buttonStyle(.plain)
                     }
                 }
+                
+                if let desc = project.description {
+                    Text(desc)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                }
+                
+                if manager.showDevlogInfo, let devlogIds = project.devlogIds, !devlogIds.isEmpty {
+                    Text("\(devlogIds.count) logs logged")
+                        .font(.system(size: 9, weight: .bold))
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(Color.orange.opacity(0.1))
+                        .foregroundStyle(.orange)
+                        .cornerRadius(4)
+                }
             }
-            
-            if let desc = project.description {
-                Text(desc)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(2)
+            .padding(.vertical, 4)
+        }
+        .buttonStyle(.plain)
+        .sheet(isPresented: $showDetail) {
+            ProjectDetailView(project: project, manager: manager)
+        }
+    }
+}
+
+struct ProjectDetailView: View {
+    let project: Project
+    let manager: FlavortownManager
+    @Environment(\.dismiss) var dismiss
+    
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack {
+                Text("Project Detail")
+                    .font(.headline)
+                Spacer()
+                Button("Done") { dismiss() }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
             }
+            .padding()
+            .background(Color.primary.opacity(0.05))
             
-            if manager.showDevlogInfo, let devlogIds = project.devlogIds, !devlogIds.isEmpty {
-                Text("\(devlogIds.count) logs logged")
-                    .font(.system(size: 9, weight: .bold))
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2)
-                    .background(Color.orange.opacity(0.1))
-                    .foregroundStyle(.orange)
-                    .cornerRadius(4)
+            ScrollView {
+                VStack(alignment: .leading, spacing: 20) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text(project.title ?? "Untitled")
+                            .font(.system(size: 24, weight: .bold, design: .rounded))
+                        
+                        if let createdAt = project.createdAt {
+                            Text("Created \(createdAt)")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    
+                    if let desc = project.description {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("DESCRIPTION")
+                                .font(.system(size: 10, weight: .black))
+                                .foregroundStyle(.secondary)
+                            Text(desc)
+                                .font(.body)
+                        }
+                    }
+                    
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("LINKS")
+                            .font(.system(size: 10, weight: .black))
+                            .foregroundStyle(.secondary)
+                        
+                        if let repo = project.repoUrl, let url = URL(string: repo) {
+                            Link(destination: url) {
+                                Label("Repository", systemImage: "link")
+                            }
+                            .buttonStyle(.bordered)
+                        }
+                        
+                        if let demo = project.demoUrl, let url = URL(string: demo) {
+                            Link(destination: url) {
+                                Label("Demo", systemImage: "play.circle")
+                            }
+                            .buttonStyle(.bordered)
+                        }
+                    }
+                    
+                    if let devlogIds = project.devlogIds, !devlogIds.isEmpty {
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text("DEVLOGS (\(devlogIds.count))")
+                                .font(.system(size: 10, weight: .black))
+                                .foregroundStyle(.secondary)
+                            
+                            if let logs = manager.devlogs[project.id.value] {
+                                ForEach(logs) { log in
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Text(log.body ?? "No content")
+                                            .font(.subheadline)
+                                        HStack {
+                                            if let duration = log.durationSeconds {
+                                                Text("\(duration / 60)m")
+                                            }
+                                            if let date = log.createdAt {
+                                                Text("• \(date)")
+                                            }
+                                        }
+                                        .font(.system(size: 10))
+                                        .foregroundStyle(.secondary)
+                                    }
+                                    .padding(.vertical, 4)
+                                    Divider()
+                                }
+                            } else {
+                                Button("Load Devlogs") {
+                                    Task { await manager.fetchDevlogs(for: project.id.value) }
+                                }
+                                .buttonStyle(.bordered)
+                                .controlSize(.small)
+                            }
+                        }
+                    }
+                }
+                .padding()
             }
         }
-        .padding(.vertical, 4)
-    
-}
+        .frame(width: 400, height: 500)
+    }
 }
 
 struct StoreItemRow: View {
     let item: StoreItem
+    let manager: FlavortownManager
     
-    var body: some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(item.name ?? "Unknown Item")
-                    .font(.headline)
-                if let stock = item.stock?.value {
-                    Text("\(stock) in stock")
-                        .font(.caption)
-                        .foregroundStyle(stock > 0 ? AnyShapeStyle(.secondary) : AnyShapeStyle(Color.red))
-                }
-            }
-            
-            Spacer()
-            
-            if let cost = item.ticketCost?.baseCost {
-                VStack(alignment: .trailing, spacing: 0) {
-                    Text("\(cost.value)")
-                        .font(.system(size: 14, weight: .heavy, design: .rounded))
-                    Text("TICKETS")
-                        .font(.system(size: 7, weight: .black))
-                        .foregroundStyle(.secondary)
-                }
-                .foregroundStyle(.orange)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .background(Color.orange.opacity(0.1))
-                .cornerRadius(6)
-            }
-        }
-        .padding(.vertical, 4)
+    var isTargeted: Bool {
+        manager.targetItemIds.contains(item.id.value)
     }
-}
-
-struct UserRow: View {
-    let user: User
-    let isMe: Bool
     
     var body: some View {
-        HStack {
-            if let avatar = user.avatar, let url = URL(string: avatar) {
+        HStack(spacing: 12) {
+            if let imageUrl = item.imageUrl, let url = URL(string: imageUrl) {
                 CachedAsyncImage(url: url)
-                    .frame(width: 32, height: 32)
-                    .clipShape(Circle())
+                    .frame(width: 44, height: 44)
+                    .clipped()
+                    .cornerRadius(6)
             } else {
-                Image(systemName: "person.circle.fill")
-                    .resizable()
-                    .frame(width: 32, height: 32)
-                    .foregroundStyle(.secondary)
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(Color.primary.opacity(0.05))
+                    .frame(width: 44, height: 44)
+                    .overlay(Image(systemName: "cart").foregroundStyle(.secondary))
             }
             
             VStack(alignment: .leading, spacing: 2) {
+                Text(item.name ?? "Unknown Item")
+                    .font(.subheadline).bold()
+                
                 HStack {
-                    Text(user.displayName ?? "Anonymous")
-                        .font(.subheadline).bold()
-                        .foregroundStyle(isMe ? .orange : .primary)
-                    
-                    if isMe {
-                        Image(systemName: "person.fill.checkmark")
-                            .font(.system(size: 10))
+                    if let cost = item.ticketCost?.baseCost {
+                        Text("\(cost.value) 🍪")
+                            .font(.system(size: 10, weight: .bold))
                             .foregroundStyle(.orange)
                     }
-                }
-                
-                if let cookies = user.cookies {
-                    Text("\(cookies) cookies 🍪")
-                        .font(.system(size: 9))
-                        .foregroundStyle(.secondary)
+                    
+                    if let stock = item.stock {
+                        Text("• \(stock.value) in stock")
+                            .font(.system(size: 10))
+                            .foregroundStyle(.secondary)
+                    }
                 }
             }
             
             Spacer()
             
-            if let projects = user.projectIds?.count {
-                Text("\(projects) projects")
-                    .font(.system(size: 10, weight: .medium))
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(isMe ? Color.orange.opacity(0.1) : Color.primary.opacity(0.05))
-                    .foregroundStyle(isMe ? .orange : .primary)
-                    .cornerRadius(8)
+            Button {
+                manager.toggleTargetItem(item.id.value)
+            } label: {
+                Image(systemName: isTargeted ? "target" : "circle")
+                    .foregroundStyle(isTargeted ? .orange : .secondary)
             }
+            .buttonStyle(.plain)
         }
         .padding(.vertical, 4)
     }
@@ -614,111 +663,110 @@ struct SettingsView: View {
     @Bindable var manager: FlavortownManager
     
     var body: some View {
-        Form {
-            Section {
-                VStack(alignment: .leading, spacing: 12) {
-                    Text("API CONFIGURATION")
-                        .font(.system(size: 10, weight: .bold))
-                        .foregroundStyle(.secondary)
-                    
-                    SecureField("Flavortown API Key", text: $manager.apiKey)
-                        .textFieldStyle(.roundedBorder)
-                        .font(.system(.body, design: .monospaced))
-                    
-                    Text("Get your key from the Flavortown dashboard. It should start with 'ft_sk_'.")
-                        .font(.system(size: 10))
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                .padding(.vertical, 8)
-            }
-            
-            Section {
-                VStack(alignment: .leading, spacing: 12) {
-                    Text("MY PROFILE")
-                        .font(.system(size: 10, weight: .bold))
-                        .foregroundStyle(.secondary)
-                    
-                    TextField("User ID", text: $manager.userId)
-                        .textFieldStyle(.roundedBorder)
-                        .font(.system(.body, design: .monospaced))
-                    
-                    if let user = manager.currentUser {
-                        HStack {
-                            if let avatar = user.avatar, let url = URL(string: avatar) {
-                                CachedAsyncImage(url: url)
-                                    .frame(width: 30, height: 30)
-                                    .clipShape(Circle())
-                            }
-                            Text(user.displayName ?? "Anonymous")
-                                .font(.headline)
-                        }
-                    } else if !manager.userId.isEmpty {
-                        Text("User not found. Try refreshing.")
-                            .font(.caption)
-                            .foregroundStyle(.red)
-                    }
-                }
-                .padding(.vertical, 8)
-            }
-            
-            Section {
-                VStack(alignment: .leading, spacing: 12) {
-                    Text("MY PROJECT")
-                        .font(.system(size: 10, weight: .bold))
-                        .foregroundStyle(.secondary)
-                    
-                    if manager.userProjects.isEmpty {
-                        Text("No projects found for this user.")
-                            .font(.caption)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 20) {
+                Section {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("USER CONFIGURATION")
+                            .font(.system(size: 10, weight: .black))
                             .foregroundStyle(.secondary)
-                    } else {
-                        Picker("Select Your Project", selection: $manager.selectedProjectId) {
-                            Text("None").tag(Optional<Int>.none)
-                            ForEach(manager.userProjects) { project in
-                                Text(project.title ?? "Untitled").tag(Optional(project.id.value))
-                            }
-                        }
-                        .pickerStyle(.menu)
                         
-                        if let selectedId = manager.selectedProjectId,
-                           let project = manager.userProjects.first(where: { $0.id.value == selectedId }) {
-                            if let time = manager.totalLoggedTimeText {
-                                Text("Total time: \(time)")
+                        VStack(spacing: 12) {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Label("API Key", systemImage: "key.fill")
                                     .font(.caption.bold())
-                                    .foregroundStyle(.orange)
+                                SecureField("Bearer token...", text: $manager.apiKey)
+                                    .textFieldStyle(.roundedBorder)
+                            }
+                            
+                            VStack(alignment: .leading, spacing: 4) {
+                                Label("User ID", systemImage: "person.fill")
+                                    .font(.caption.bold())
+                                TextField("Your ID...", text: $manager.userId)
+                                    .textFieldStyle(.roundedBorder)
                             }
                         }
+                        .padding()
+                        .background(Color.primary.opacity(0.05))
+                        .cornerRadius(12)
                     }
                 }
-                .padding(.vertical, 8)
-            }
-
-            Section {
-                Toggle("Show devlog info in project list", isOn: $manager.showDevlogInfo)
-                    .controlSize(.small)
-            }
-            
-            Section {
-                Button("Verify & Refresh") {
-                    Task { await manager.fetchData() }
+                
+                Section {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("TARGET TRACKING")
+                            .font(.system(size: 10, weight: .black))
+                            .foregroundStyle(.secondary)
+                        
+                        VStack(spacing: 12) {
+                            HStack {
+                                Label("Cookies per hour", systemImage: "timer")
+                                Spacer()
+                                TextField("", value: $manager.cookiesPerHour, format: .number)
+                                    .textFieldStyle(.roundedBorder)
+                                    .frame(width: 60)
+                            }
+                            
+                            Divider()
+                            
+                            HStack {
+                                Text("Total Target Cost")
+                                Spacer()
+                                Text("\(manager.totalTargetCost) 🍪")
+                                    .bold()
+                            }
+                            
+                            HStack {
+                                Text("Remaining Needed")
+                                Spacer()
+                                Text("\(manager.remainingCookiesNeeded) 🍪")
+                                    .foregroundStyle(.orange)
+                                    .bold()
+                            }
+                            
+                            if let hours = manager.estimatedHoursToTarget {
+                                HStack {
+                                    Text("Estimated Time")
+                                    Spacer()
+                                    Text(String(format: "%.1f hours", hours))
+                                        .bold()
+                                }
+                            }
+                        }
+                        .padding()
+                        .background(Color.primary.opacity(0.05))
+                        .cornerRadius(12)
+                    }
                 }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.small)
-            }
-            
-            Section {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("About Flvr")
-                        .font(.headline)
-                    Text("Version 1.0")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                
+                Section {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("DISPLAY OPTIONS")
+                            .font(.system(size: 10, weight: .black))
+                            .foregroundStyle(.secondary)
+                        
+                        Toggle(isOn: $manager.showDevlogInfo) {
+                            Label("Show Devlog Counts", systemImage: "clock.badge.checkmark")
+                        }
+                        .toggleStyle(.switch)
+                        .padding()
+                        .background(Color.primary.opacity(0.05))
+                        .cornerRadius(12)
+                    }
                 }
-                .padding(.top, 12)
+                
+                VStack(spacing: 4) {
+                    Text("Flvr v\(manager.appVersion)")
+                        .font(.system(size: 10, weight: .bold))
+                    Text("Made with 🔥 by Hack Club")
+                        .font(.system(size: 9))
+                }
+                .frame(maxWidth: .infinity)
+                .foregroundStyle(.secondary)
+                .padding(.top)
             }
+            .padding()
         }
-        .formStyle(.grouped)
     }
 }
 
@@ -744,23 +792,17 @@ struct CachedAsyncImage: View {
     let url: URL
     
     var body: some View {
-        AsyncImage(url: url, transaction: Transaction(animation: .default)) { phase in
+        AsyncImage(url: url) { phase in
             switch phase {
-            case .success(let image):
-                image
-                    .resizable()
-                    .scaledToFill()
-            case .failure(_):
-                Color.gray.opacity(0.1)
             case .empty:
                 ProgressView().controlSize(.small)
+            case .success(let image):
+                image.resizable().aspectRatio(contentMode: .fill)
+            case .failure:
+                Image(systemName: "photo").foregroundStyle(.secondary)
             @unknown default:
                 EmptyView()
             }
         }
     }
-}
-
-#Preview {
-    ContentView(manager: FlavortownManager())
 }
