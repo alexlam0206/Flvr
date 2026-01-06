@@ -74,26 +74,34 @@ struct ContentView: View {
     }
 
     private var mainContent: some View {
-        VStack(spacing: 0) {
-            header
-            
-            Picker("", selection: $manager.selectedTab) {
-                Label("Projects", systemImage: "hammer.fill").tag(FlavortownManager.Tab.projects)
-                Label("Store", systemImage: "cart.fill").tag(FlavortownManager.Tab.store)
-                Label("Settings", systemImage: "gearshape.fill").tag(FlavortownManager.Tab.settings)
+        ZStack {
+            VStack(spacing: 0) {
+                header
+                
+                Picker("", selection: $manager.selectedTab) {
+                    Label("Projects", systemImage: "hammer.fill").tag(FlavortownManager.Tab.projects)
+                    Label("Store", systemImage: "cart.fill").tag(FlavortownManager.Tab.store)
+                    Label("Settings", systemImage: "gearshape.fill").tag(FlavortownManager.Tab.settings)
+                }
+                .pickerStyle(.segmented)
+                .padding(.horizontal)
+                .padding(.bottom, 8)
+                .controlSize(.small)
+                
+                Divider()
+                
+                content
+                
+                footer
             }
-            .pickerStyle(.segmented)
-            .padding(.horizontal)
-            .padding(.bottom, 8)
-            .controlSize(.small)
+            .contentShape(Rectangle())
             
-            Divider()
-            
-            content
-            
-            footer
+            if let project = manager.viewingProject {
+                ProjectDetailView(project: project, manager: manager)
+                    .transition(.move(edge: .trailing).combined(with: .opacity))
+                    .zIndex(1)
+            }
         }
-        .contentShape(Rectangle())
         .task {
             manager.startPolling()
         }
@@ -443,7 +451,6 @@ struct StoreCard: View {
 struct ProjectRow: View {
     let project: Project
     let manager: FlavortownManager
-    @State private var showDetail = false
     
     var isMine: Bool {
         guard let user = manager.currentUser, let projectIds = user.projectIds else { return false }
@@ -452,7 +459,7 @@ struct ProjectRow: View {
     
     var body: some View {
         Button {
-            showDetail = true
+            manager.viewingProject = project
         } label: {
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
@@ -472,6 +479,7 @@ struct ProjectRow: View {
                             Image(systemName: "arrow.up.right.circle.fill")
                         }
                         .buttonStyle(.plain)
+                        .help("Open Repository")
                     }
                 }
                 
@@ -482,125 +490,204 @@ struct ProjectRow: View {
                         .lineLimit(2)
                 }
                 
-                if manager.showDevlogInfo, let devlogIds = project.devlogIds, !devlogIds.isEmpty {
-                    Text("\(devlogIds.count) logs logged")
-                        .font(.system(size: 9, weight: .bold))
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(Color.orange.opacity(0.1))
-                        .foregroundStyle(.orange)
-                        .cornerRadius(4)
+                HStack(spacing: 8) {
+                    if manager.showDevlogInfo, let devlogIds = project.devlogIds, !devlogIds.isEmpty {
+                        Text("\(devlogIds.count) logs")
+                            .font(.system(size: 9, weight: .bold))
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Color.orange.opacity(0.1))
+                            .foregroundStyle(.orange)
+                            .cornerRadius(4)
+                    }
+                    
+                    if let createdAt = project.createdAt {
+                        Text(createdAt)
+                            .font(.system(size: 9))
+                            .foregroundStyle(.secondary)
+                    }
                 }
             }
-            .padding(.vertical, 4)
+            .padding(10)
+            .background(Color.primary.opacity(0.03))
+            .cornerRadius(8)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .sheet(isPresented: $showDetail) {
-            ProjectDetailView(project: project, manager: manager)
-        }
     }
 }
 
 struct ProjectDetailView: View {
     let project: Project
     let manager: FlavortownManager
-    @Environment(\.dismiss) var dismiss
     
     var body: some View {
         VStack(spacing: 0) {
             HStack {
-                Text("Project Detail")
-                    .font(.headline)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Project Detail")
+                        .font(.caption.bold())
+                        .foregroundStyle(.secondary)
+                    Text(project.title ?? "Untitled")
+                        .font(.headline)
+                }
                 Spacer()
-                Button("Done") { dismiss() }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
+                Button { 
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                        manager.viewingProject = nil 
+                    }
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.title2)
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
             }
             .padding()
-            .background(Color.primary.opacity(0.05))
+            .background(VisualEffectView(material: .headerView, blendingMode: .withinWindow))
+            
+            Divider()
             
             ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text(project.title ?? "Untitled")
-                            .font(.system(size: 24, weight: .bold, design: .rounded))
-                        
-                        if let createdAt = project.createdAt {
-                            Text("Created \(createdAt)")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                    
+                VStack(alignment: .leading, spacing: 24) {
                     if let desc = project.description {
                         VStack(alignment: .leading, spacing: 8) {
-                            Text("DESCRIPTION")
-                                .font(.system(size: 10, weight: .black))
-                                .foregroundStyle(.secondary)
+                            SectionHeader(title: "DESCRIPTION")
                             Text(desc)
                                 .font(.body)
+                                .lineSpacing(4)
                         }
                     }
                     
                     VStack(alignment: .leading, spacing: 12) {
-                        Text("LINKS")
-                            .font(.system(size: 10, weight: .black))
-                            .foregroundStyle(.secondary)
+                        SectionHeader(title: "LINKS")
                         
-                        if let repo = project.repoUrl, let url = URL(string: repo) {
-                            Link(destination: url) {
-                                Label("Repository", systemImage: "link")
+                        FlowLayout(spacing: 8) {
+                            if let repo = project.repoUrl, let url = URL(string: repo) {
+                                LinkButton(title: "Repository", systemImage: "link", url: url)
                             }
-                            .buttonStyle(.bordered)
-                        }
-                        
-                        if let demo = project.demoUrl, let url = URL(string: demo) {
-                            Link(destination: url) {
-                                Label("Demo", systemImage: "play.circle")
+                            
+                            if let demo = project.demoUrl, let url = URL(string: demo) {
+                                LinkButton(title: "Demo", systemImage: "play.circle", url: url, color: .blue)
                             }
-                            .buttonStyle(.bordered)
                         }
                     }
                     
                     if let devlogIds = project.devlogIds, !devlogIds.isEmpty {
                         VStack(alignment: .leading, spacing: 12) {
-                            Text("DEVLOGS (\(devlogIds.count))")
-                                .font(.system(size: 10, weight: .black))
-                                .foregroundStyle(.secondary)
+                            HStack {
+                                SectionHeader(title: "DEVLOGS (\(devlogIds.count))")
+                                Spacer()
+                                if manager.devlogs[project.id.value] == nil {
+                                    Button("Load All") {
+                                        Task { await manager.fetchDevlogs(for: project.id.value) }
+                                    }
+                                    .buttonStyle(.bordered)
+                                    .controlSize(.small)
+                                }
+                            }
                             
                             if let logs = manager.devlogs[project.id.value] {
-                                ForEach(logs) { log in
-                                    VStack(alignment: .leading, spacing: 4) {
-                                        Text(log.body ?? "No content")
-                                            .font(.subheadline)
-                                        HStack {
-                                            if let duration = log.durationSeconds {
-                                                Text("\(duration / 60)m")
-                                            }
-                                            if let date = log.createdAt {
-                                                Text("• \(date)")
-                                            }
+                                VStack(spacing: 0) {
+                                    ForEach(logs) { log in
+                                        DevlogRow(log: log)
+                                        if log.id != logs.last?.id {
+                                            Divider().padding(.leading, 32)
                                         }
-                                        .font(.system(size: 10))
-                                        .foregroundStyle(.secondary)
                                     }
-                                    .padding(.vertical, 4)
-                                    Divider()
                                 }
+                                .background(Color.primary.opacity(0.03))
+                                .cornerRadius(12)
                             } else {
-                                Button("Load Devlogs") {
-                                    Task { await manager.fetchDevlogs(for: project.id.value) }
-                                }
-                                .buttonStyle(.bordered)
-                                .controlSize(.small)
+                                ContentUnavailableView("Devlogs Not Loaded", systemImage: "clock.arrow.2.circlepath", description: Text("Click Load All to fetch project history"))
+                                    .controlSize(.small)
+                                    .padding(.vertical)
                             }
                         }
                     }
                 }
-                .padding()
+                .padding(20)
             }
         }
-        .frame(width: 400, height: 500)
+        .background(VisualEffectView(material: .popover, blendingMode: .withinWindow))
+    }
+}
+
+struct SectionHeader: View {
+    let title: String
+    var body: some View {
+        Text(title)
+            .font(.system(size: 10, weight: .black))
+            .foregroundStyle(.secondary)
+            .kerning(1)
+    }
+}
+
+struct LinkButton: View {
+    let title: String
+    let systemImage: String
+    let url: URL
+    var color: Color = .primary
+    
+    var body: some View {
+        Link(destination: url) {
+            Label(title, systemImage: systemImage)
+                .font(.subheadline.bold())
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .background(color.opacity(0.1))
+                .foregroundStyle(color)
+                .cornerRadius(8)
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+struct DevlogRow: View {
+    let log: Devlog
+    var body: some View {
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: "quote.bubble.fill")
+                .font(.system(size: 12))
+                .foregroundStyle(.orange.opacity(0.6))
+                .padding(.top, 4)
+            
+            VStack(alignment: .leading, spacing: 4) {
+                Text(log.body ?? "No content")
+                    .font(.subheadline)
+                    .fixedSize(horizontal: false, vertical: true)
+                
+                HStack(spacing: 8) {
+                    if let duration = log.durationSeconds {
+                        Label("\(duration / 60)m", systemImage: "timer")
+                    }
+                    if let date = log.createdAt {
+                        Text("• \(date)")
+                    }
+                }
+                .font(.system(size: 10))
+                .foregroundStyle(.secondary)
+            }
+        }
+        .padding(12)
+    }
+}
+
+struct FlowLayout: View {
+    let spacing: CGFloat
+    let views: [AnyView]
+    
+    init<Views>(spacing: CGFloat = 8, @ViewBuilder content: @escaping () -> Views) where Views: View {
+        self.spacing = spacing
+        self.views = [AnyView(content())]
+    }
+    
+    var body: some View {
+        HStack(spacing: spacing) {
+            ForEach(0..<views.count, id: \.self) { index in
+                views[index]
+            }
+        }
     }
 }
 

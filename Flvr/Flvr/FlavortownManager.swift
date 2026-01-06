@@ -216,7 +216,7 @@ class FlavortownManager {
             let (data, _) = try await URLSession.shared.data(for: request)
             let release = try JSONDecoder().decode(GitHubRelease.self, from: data)
             
-            if release.tagName != appVersion {
+            if isNewerVersion(latest: release.tagName, current: appVersion) {
                 await MainActor.run {
                     self.availableUpdate = release
                     self.showUpdateAlert = true
@@ -229,6 +229,29 @@ class FlavortownManager {
         }
     }
     
+    private func isNewerVersion(latest: String, current: String) -> Bool {
+        let latestClean = latest.lowercased().hasPrefix("v") ? String(latest.dropFirst()) : latest
+        let currentClean = current.lowercased().hasPrefix("v") ? String(current.dropFirst()) : current
+        
+        let latestComponents = latestClean.split(separator: ".").compactMap { Int($0) }
+        let currentComponents = currentClean.split(separator: ".").compactMap { Int($0) }
+        
+        // Compare major
+        let latestMajor = latestComponents.indices.contains(0) ? latestComponents[0] : 0
+        let currentMajor = currentComponents.indices.contains(0) ? currentComponents[0] : 0
+        
+        if latestMajor > currentMajor { return true }
+        if latestMajor < currentMajor { return false }
+        
+        // Major is equal, compare minor
+        let latestMinor = latestComponents.indices.contains(1) ? latestComponents[1] : 0
+        let currentMinor = currentComponents.indices.contains(1) ? currentComponents[1] : 0
+        
+        if latestMinor > currentMinor { return true }
+        
+        return false
+    }
+    
     func remindMeLater() {
         showUpdateAlert = false
         UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: "flvr_last_update_check")
@@ -237,6 +260,8 @@ class FlavortownManager {
     var showDevlogInfo = false
     var isFetching = false
     var lastUpdated: Date?
+    var viewingProject: Project?
+    
     var tabErrors: [Tab: String] = [:]
     
     var targetItemIds: Set<Int> = [] {
