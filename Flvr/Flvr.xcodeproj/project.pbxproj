@@ -6,27 +6,8 @@
 	objectVersion = 77;
 	objects = {
 
-/* Begin PBXContainerItemProxy section */
-		E4DE9AEE2EFF913800EF30AF /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = E4DE9AD62EFF913600EF30AF /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = E4DE9ADD2EFF913600EF30AF;
-			remoteInfo = Flvr;
-		};
-		E4DE9AF82EFF913800EF30AF /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = E4DE9AD62EFF913600EF30AF /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = E4DE9ADD2EFF913600EF30AF;
-			remoteInfo = Flvr;
-		};
-/* End PBXContainerItemProxy section */
-
 /* Begin PBXFileReference section */
 		E4DE9ADE2EFF913600EF30AF /* Flvr.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Flvr.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		E4DE9AED2EFF913800EF30AF /* FlvrTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = FlvrTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		E4DE9AF72EFF913800EF30AF /* FlvrUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = FlvrUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -55,20 +36,6 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		E4DE9AEA2EFF913800EF30AF /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		E4DE9AF42EFF913800EF30AF /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -86,8 +53,6 @@
 			isa = PBXGroup;
 			children = (
 				E4DE9ADE2EFF913600EF30AF /* Flvr.app */,
-				E4DE9AED2EFF913800EF30AF /* FlvrTests.xctest */,
-				E4DE9AF72EFF913800EF30AF /* FlvrUITests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -117,52 +82,6 @@
 			productReference = E4DE9ADE2EFF913600EF30AF /* Flvr.app */;
 			productType = "com.apple.product-type.application";
 		};
-		E4DE9AEC2EFF913800EF30AF /* FlvrTests */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = E4DE9B042EFF913800EF30AF /* Build configuration list for PBXNativeTarget "FlvrTests" */;
-			buildPhases = (
-				E4DE9AE92EFF913800EF30AF /* Sources */,
-				E4DE9AEA2EFF913800EF30AF /* Frameworks */,
-				E4DE9AEB2EFF913800EF30AF /* Resources */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-				E4DE9AEF2EFF913800EF30AF /* PBXTargetDependency */,
-			);
-			fileSystemSynchronizedGroups = (
-				E4DE9AF02EFF913800EF30AF /* FlvrTests */,
-			);
-			name = FlvrTests;
-			packageProductDependencies = (
-			);
-			productName = FlvrTests;
-			productReference = E4DE9AED2EFF913800EF30AF /* FlvrTests.xctest */;
-			productType = "com.apple.product-type.bundle.unit-test";
-		};
-		E4DE9AF62EFF913800EF30AF /* FlvrUITests */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = E4DE9B072EFF913800EF30AF /* Build configuration list for PBXNativeTarget "FlvrUITests" */;
-			buildPhases = (
-				E4DE9AF32EFF913800EF30AF /* Sources */,
-				E4DE9AF42EFF913800EF30AF /* Frameworks */,
-				E4DE9AF52EFF913800EF30AF /* Resources */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-				E4DE9AF92EFF913800EF30AF /* PBXTargetDependency */,
-			);
-			fileSystemSynchronizedGroups = (
-				E4DE9AFA2EFF913800EF30AF /* FlvrUITests */,
-			);
-			name = FlvrUITests;
-			packageProductDependencies = (
-			);
-			productName = FlvrUITests;
-			productReference = E4DE9AF72EFF913800EF30AF /* FlvrUITests.xctest */;
-			productType = "com.apple.product-type.bundle.ui-testing";
-		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -175,14 +94,6 @@
 				TargetAttributes = {
 					E4DE9ADD2EFF913600EF30AF = {
 						CreatedOnToolsVersion = 26.0;
-					};
-					E4DE9AEC2EFF913800EF30AF = {
-						CreatedOnToolsVersion = 26.0;
-						TestTargetID = E4DE9ADD2EFF913600EF30AF;
-					};
-					E4DE9AF62EFF913800EF30AF = {
-						CreatedOnToolsVersion = 26.0;
-						TestTargetID = E4DE9ADD2EFF913600EF30AF;
 					};
 				};
 			};
@@ -201,28 +112,12 @@
 			projectRoot = "";
 			targets = (
 				E4DE9ADD2EFF913600EF30AF /* Flvr */,
-				E4DE9AEC2EFF913800EF30AF /* FlvrTests */,
-				E4DE9AF62EFF913800EF30AF /* FlvrUITests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
 		E4DE9ADC2EFF913600EF30AF /* Resources */ = {
-			isa = PBXResourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		E4DE9AEB2EFF913800EF30AF /* Resources */ = {
-			isa = PBXResourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		E4DE9AF52EFF913800EF30AF /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -239,34 +134,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		E4DE9AE92EFF913800EF30AF /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		E4DE9AF32EFF913800EF30AF /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 /* End PBXSourcesBuildPhase section */
-
-/* Begin PBXTargetDependency section */
-		E4DE9AEF2EFF913800EF30AF /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = E4DE9ADD2EFF913600EF30AF /* Flvr */;
-			targetProxy = E4DE9AEE2EFF913800EF30AF /* PBXContainerItemProxy */;
-		};
-		E4DE9AF92EFF913800EF30AF /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = E4DE9ADD2EFF913600EF30AF /* Flvr */;
-			targetProxy = E4DE9AF82EFF913800EF30AF /* PBXContainerItemProxy */;
-		};
-/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		E4DE9AFF2EFF913800EF30AF /* Debug */ = {
@@ -439,12 +307,11 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "3rd Party Mac Developer Application";
-				CODE_SIGN_STYLE = Manual;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
-				"DEVELOPMENT_TEAM[sdk=macosx*]" = P6PV2R9443;
+				DEVELOPMENT_TEAM = P6PV2R9443;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
@@ -462,7 +329,6 @@
 				PRODUCT_BUNDLE_IDENTIFIER = alexlam.Flvr;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
-				"PROVISIONING_PROFILE_SPECIFIER[sdk=macosx*]" = "Flvr - Alex Lam";
 				REGISTER_APP_GROUPS = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SUPPORTED_PLATFORMS = macosx;
@@ -474,86 +340,6 @@
 				SWIFT_VERSION = 5.0;
 				com.apple.security.network.client = YES;
 				com.apple.security.network.server = YES;
-			};
-			name = Release;
-		};
-		E4DE9B052EFF913800EF30AF /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				BUNDLE_LOADER = "$(TEST_HOST)";
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = P6PV2R9443;
-				GENERATE_INFOPLIST_FILE = YES;
-				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = alexlam.FlvrTests;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				STRING_CATALOG_GENERATE_SYMBOLS = NO;
-				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_EMIT_LOC_STRINGS = NO;
-				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Flvr.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Flvr";
-			};
-			name = Debug;
-		};
-		E4DE9B062EFF913800EF30AF /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				BUNDLE_LOADER = "$(TEST_HOST)";
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = P6PV2R9443;
-				GENERATE_INFOPLIST_FILE = YES;
-				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = alexlam.FlvrTests;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				STRING_CATALOG_GENERATE_SYMBOLS = NO;
-				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_EMIT_LOC_STRINGS = NO;
-				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Flvr.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Flvr";
-			};
-			name = Release;
-		};
-		E4DE9B082EFF913800EF30AF /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = P6PV2R9443;
-				GENERATE_INFOPLIST_FILE = YES;
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = alexlam.FlvrUITests;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				STRING_CATALOG_GENERATE_SYMBOLS = NO;
-				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_EMIT_LOC_STRINGS = NO;
-				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
-				TEST_TARGET_NAME = Flvr;
-			};
-			name = Debug;
-		};
-		E4DE9B092EFF913800EF30AF /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = P6PV2R9443;
-				GENERATE_INFOPLIST_FILE = YES;
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = alexlam.FlvrUITests;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				STRING_CATALOG_GENERATE_SYMBOLS = NO;
-				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_EMIT_LOC_STRINGS = NO;
-				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
-				TEST_TARGET_NAME = Flvr;
 			};
 			name = Release;
 		};
@@ -574,24 +360,6 @@
 			buildConfigurations = (
 				E4DE9B022EFF913800EF30AF /* Debug */,
 				E4DE9B032EFF913800EF30AF /* Release */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
-		E4DE9B042EFF913800EF30AF /* Build configuration list for PBXNativeTarget "FlvrTests" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				E4DE9B052EFF913800EF30AF /* Debug */,
-				E4DE9B062EFF913800EF30AF /* Release */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
-		E4DE9B072EFF913800EF30AF /* Build configuration list for PBXNativeTarget "FlvrUITests" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				E4DE9B082EFF913800EF30AF /* Debug */,
-				E4DE9B092EFF913800EF30AF /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

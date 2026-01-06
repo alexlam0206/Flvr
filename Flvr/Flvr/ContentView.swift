@@ -845,7 +845,7 @@ struct SettingsView: View {
                 VStack(spacing: 4) {
                     Text("Flvr v\(manager.appVersion)")
                         .font(.system(size: 10, weight: .bold))
-                    Text("Made with 🔥 by Hack Club")
+                    Text("Made with 🔥 for by @nok Flavortown")
                         .font(.system(size: 9))
                 }
                 .frame(maxWidth: .infinity)
